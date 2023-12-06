@@ -1,31 +1,38 @@
 import pygame
 import sys
+import time
 
 pygame.init()
+pygame.mixer.init()
 clock = pygame.time.Clock()
 
 WIDTH = 1000
 HEIGHT = 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Sunny dash")
+
 bg = pygame.transform.scale(
-    pygame.image.load("./main game/assets/back.png"), (WIDTH, HEIGHT)
+    pygame.image.load("assets/back.png"), (WIDTH, HEIGHT)
 )
-grass = pygame.image.load("./main game/assets/platform.png")
-dirt = pygame.image.load("./main game/assets/dirt0000.png")
+grass = pygame.image.load("assets/platform.png")
+dirt = pygame.image.load("assets/dirt0000.png")
 
 tree = pygame.transform.scale(
-    pygame.image.load("./main game/assets/tree.png"), (119 * 2, 111 * 2)
+    pygame.image.load("assets/tree.png"), (119 * 2, 111 * 2)
 )
 pine = pygame.transform.scale(
-    pygame.image.load("./main game/assets/pine.png"), (82 * 1.5, 130 * 1.5)
+    pygame.image.load("assets/pine.png"), (82 * 1.5, 130 * 1.5)
 )
 bush = pygame.transform.scale(
-    pygame.image.load("./main game/assets/bush.png"), (46 * 2, 28 * 2)
+    pygame.image.load("assets/bush.png"), (46 * 2, 28 * 2)
 )
 sign = pygame.transform.scale(
-    pygame.image.load("./main game/assets/sign.png"), (18 * 2, 20 * 2)
+    pygame.image.load("assets/sign.png"), (18 * 2, 20 * 2)
 )
 
+koin = 0
+total_koin = 4
+is_game_over = False
 
 class Player(pygame.sprite.Sprite):
     def __init__(self):
@@ -41,7 +48,7 @@ class Player(pygame.sprite.Sprite):
         self.right = [
             pygame.transform.scale(
                 pygame.image.load(
-                    f"./main game/assets/player/idle/player-idle-{index}.png"
+                    f"assets/player/idle/player-idle-{index}.png"
                 ),
                 (50, 50),
             )
@@ -52,7 +59,7 @@ class Player(pygame.sprite.Sprite):
         self.walk_right = [
             pygame.transform.scale(
                 pygame.image.load(
-                    f"./main game/assets/player/run/player-run-{index}.png"
+                    f"assets/player/run/player-run-{index}.png"
                 ),
                 (50, 50),
             )
@@ -141,10 +148,13 @@ class Player(pygame.sprite.Sprite):
         self.rect.x += self.dx
         self.rect.y += self.dy
 
+        if self.rect.colliderect(enemy.enemy_rect):
+            if self.rect.right - enemy.enemy_rect.left < 10 or self.rect.left - enemy.enemy_rect.right < 10:
+                self.rect.topleft = (WIDTH + 100, HEIGHT + 100)
+
         if self.rect.bottom > HEIGHT:
             self.rect.bottom = HEIGHT
             self.dy = 0
-
 
 class Enemy:
     def __init__(self):
@@ -152,23 +162,35 @@ class Enemy:
         self.left = []
         for index in range(1, 6):
             self.img = pygame.image.load(
-                f"./main game/assets/enemy/opossum-{index}.png"
+                f"assets/enemy/opossum-{index}.png"
             )
-            enemy_right = pygame.transform.scale(self.img, (50, 50))
-            enemy_left = pygame.transform.flip(self.img, True, False)
+            enemy_right = pygame.transform.scale(self.img, (40, 40))
+            enemy_left = pygame.transform.flip(enemy_right, True, False)
             self.right.append(enemy_right)
             self.left.append(enemy_left)
         self.frame = 0
         self.image = self.right[self.frame]
-        self.enemy_rect = self.image.get_rect(topleft=(650, 350))
+        self.enemy_rect = self.image.get_rect(topleft=(650, 360))
+        self.direction = 1
 
     def update(self):
-        self.frame += 0.1
-        if self.frame >= len(self.right):
-            self.frame = 0
-        self.image = self.right[int(self.frame)]
-
-
+        if self.direction == 1:
+            self.enemy_rect.x += 1
+            if self.enemy_rect.x >= 650:
+                self.direction = -1
+            self.frame += 0.1
+            if self.frame >= len(self.right):
+                self.frame = 0
+            self.image = self.left[int(self.frame)]
+    
+        if self.direction == -1:
+            self.enemy_rect.x -= 1
+            if self.enemy_rect.x <= 500:
+                self.direction = 1
+            self.frame += 0.1
+            if self.frame >= len(self.left):
+                self.frame = 0
+            self.image = self.right[int(self.frame)]
 
 class Platform:
     def __init__(self):
@@ -218,10 +240,47 @@ class Platform:
         for tile in self.tile_list:
             screen.blit(tile[0], tile[1])
 
+class Coin():
+    def __init__(self):
+        self.coin = []
+        self.coin_rect_list = [] 
+        for index in range(1, 7):
+            self.img = pygame.image.load(f"assets/coin/Coin-{index}.png.png")
+            self.img = pygame.transform.scale(self.img, (40, 40))
+            self.coin.append(self.img)
+        self.frame = 0
+        self.koin = self.coin[self.frame]
+        self.coin_rect = self.koin.get_rect()
+
+        coin_positions = [
+            {'x': 520, 'y': 365},
+            {'x': 645, 'y': 365},
+            {'x': 800, 'y': 265},
+            {'x': 275, 'y': 115},
+        ]
+
+        for pos in coin_positions:
+            rect = pygame.Rect(pos['x'], pos['y'], 40, 40)
+            self.coin_rect_list.append(rect)
+
+    def update(self):
+        self.frame += 0.2
+        if self.frame >= len(self.coin):
+            self.frame = 0
+        self.koin = self.coin[int(self.frame)]
+
+        for coin_rect in self.coin_rect_list:
+            screen.blit(self.koin, coin_rect.topleft)
+
 
 platform = Platform()
 player = Player()
 enemy = Enemy()
+coin = Coin()
+pygame.mixer.music.load('assets/2 Bit.mp3')
+pygame.mixer.music.play(-1)
+font = pygame.font.Font('assets/PixelifySans-Regular.ttf', 30)
+text = font.render(f'Score = {koin}', None, (255, 255, 255), None)
 
 while True:
     for event in pygame.event.get():
@@ -233,8 +292,43 @@ while True:
     player.update()
     platform.draw()
     enemy.update()
+    coin.update()
     screen.blit(player.idle, player.rect)
-    screen.blit(enemy.image, enemy.enemy_rect)
 
+    coins_to_remove = [] 
+
+    for i, coin_rect in enumerate(coin.coin_rect_list):
+        if player.rect.colliderect(coin_rect):
+            coins_to_remove.append(i)
+            koin += 1
+
+    for index in coins_to_remove:
+        del coin.coin_rect_list[index]
+
+    text = font.render(f'Score = {koin}', None, (255, 255, 255), None) 
+    screen.blit(text, (10, 10))
+
+    if koin == total_koin:
+        font = pygame.font.Font('assets/PixelifySans-Regular.ttf', 50)
+        win_text = font.render('You Win!', None, (255, 255, 255), None) 
+        win_rect = win_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+        screen.blit(win_text, win_rect)
+        pygame.display.flip()
+        pygame.time.delay(3000) 
+        sys.exit()
+
+    if player.rect.colliderect(enemy.enemy_rect):
+        is_game_over = True
+
+    if is_game_over:
+        font = pygame.font.Font('assets/PixelifySans-Regular.ttf', 50)
+        game_over_text = font.render('Game Over', None, (255, 255, 255), None)  
+        game_over_rect = game_over_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+        screen.blit(game_over_text, game_over_rect)
+        pygame.display.flip()
+        pygame.time.delay(3000)
+        sys.exit()
+
+    screen.blit(enemy.image, enemy.enemy_rect)
     pygame.display.flip()
     clock.tick(60)
